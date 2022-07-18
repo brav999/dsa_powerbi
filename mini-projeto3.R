@@ -186,3 +186,116 @@ recall
 
 F1 <- (2 * precision * recall) / (precision + recall)
 F1
+
+# Balanceamento de classe
+install.packages("performanceEstimation")
+library(performanceEstimation)
+
+# Usado 'performanceEstimation' pois não permite o uso do DMwR na versão atual do R
+
+# Aplicando o SMOTE - SMOTE: Synthetic Minority Over-Sampling Technique
+table(dados_treino$Inadimplente)
+prop.table(table(dados_treino$Inadimplente))
+set.seed(9560)
+dados_treino_bal <- smote(Inadimplente ~ ., dados_treino, perc.over = 7, perc.under = 2)
+table(dados_treino_bal$Inadimplente)
+prop.table(table(dados_treino_bal$Inadimplente))
+
+# Construindo a segunda versão do modelo
+modelo_v2 <- randomForest(Inadimplente ~ ., data = dados_treino_bal)
+modelo_v2
+
+# Avaliando o modelo
+plot(modelo_v2)
+
+# Previsões com dados de teste
+previsoes_v2 <- predict(modelo_v2, dados_teste)
+
+# Confusion matrix
+cm_v2 <- caret::confusionMatrix(previsoes_v2, dados_teste$Inadimplente, positive = "1")
+cm_v2
+
+# Calculando presicion, recall e F1-score, métricas de avaliação do modelo preditivo
+y <- dados_teste$Inadimplente
+y_pred_v2 <- previsoes_v2
+
+precision <- posPredValue(y_pred_v2, y)
+precision
+
+recall <- sensitivity(y_pred_v2, y)
+recall
+
+F1 <- (2 * precision * recall) / (precision + recall)
+F1
+
+# Conferência das importancias.
+# Importância das variáveis preditoras para as previsões
+View(dados_treino_bal)
+varImpPlot(modelo_v2)
+
+
+# Construindo a 3ª versão do modelo com variaveis mais importantes
+colnames(dados_treino_bal)
+modelo_v3 <- randomForest(Inadimplente ~ PAY_0 + LIMIT_BAL + PAY_AMT6 + PAY_AMT2 + 
+                          PAY_AMT1 + PAY_AMT5 + BILL_AMT1,
+                          data = dados_treino_bal)
+modelo_v3
+
+# Avaliando o modelo
+plot(modelo_v3)
+
+# Previsões com dados de teste
+previsoes_v3 <- predict(modelo_v3, dados_teste)
+
+# Confusion matrix
+cm_v3 <- caret::confusionMatrix(previsoes_v3, dados_teste$Inadimplente, positive = "1")
+cm_v3
+
+# Calculando presicion, recall e F1-score, métricas de avaliação do modelo preditivo
+y <- dados_teste$Inadimplente
+y_pred_v3 <- previsoes_v3
+
+precision <- posPredValue(y_pred_v3, y)
+precision
+
+recall <- sensitivity(y_pred_v3, y)
+recall
+
+F1 <- (2 * precision * recall) / (precision + recall)
+F1
+
+# Salvando o modelo em disco
+saveRDS(modelo_v3, file = "modelo/modelo_v3.rds")
+
+# Carregando o modelo
+modelo_final <- readRDS("modelo/modelo_v3.rds")
+
+# Previsões com novos dados de 3 clientes
+
+# Dados dos clientes
+PAY_0 <- c(0,0,0)
+LIMIT_BAL <- c(2000,5000,6000)
+PAY_AMT6 <- c(500,700,800)
+PAY_AMT2 <- c(450,300,800)
+PAY_AMT1 <- c(405,350,950)
+PAY_AMT5 <- c(300,5000,1800)
+BILL_AMT1 <- c(1000,2300,5000)
+
+#Concatena em um df
+novos_clientes <- data.frame(PAY_0, LIMIT_BAL, PAY_AMT6, PAY_AMT2, PAY_AMT1, PAY_AMT5, BILL_AMT1)
+View(novos_clientes)
+
+#Previsoes
+previsoes_novos_clientes <- predict(modelo_final, novos_clientes)
+
+# Checando os tipos de dados
+str(dados_treino_bal)
+str(novos_clientes)
+
+# Convertendo os tipos de dados
+novos_clientes$PAY_0 <- factor(novos_clientes$PAY_0, levels = levels(dados_treino_bal$PAY_0))
+str(novos_clientes)
+
+#Previsoes
+previsoes_novos_clientes <- predict(modelo_final, novos_clientes)
+View(previsoes_novos_clientes)      
